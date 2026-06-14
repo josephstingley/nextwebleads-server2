@@ -10,9 +10,8 @@ app.use(express.json());
 
 const GOOGLE_API_KEY = 'AIzaSyAbWvppyxVq48kvaXG0T1zkMk7NRYp6Swg';
 const SEEN_FILE = path.join(__dirname, 'seen.json');
-const LEADS_FOLDER = 'C:\\Users\\vowmg\\OneDrive\\Desktop\\webleads';
 
-const NICHES = [
+const ALL_NICHES = [
   'auto detailing', 'barbershop', 'nail salon', 'landscaping',
   'cleaning service', 'tattoo shop', 'gym', 'plumber',
   'electrician', 'pressure washing',
@@ -55,7 +54,9 @@ function loadSeen() {
 }
 
 function saveSeen(seen) {
-  fs.writeFileSync(SEEN_FILE, JSON.stringify([...seen]));
+  try {
+    fs.writeFileSync(SEEN_FILE, JSON.stringify([...seen]));
+  } catch (e) {}
 }
 
 async function searchPlaces(query) {
@@ -73,31 +74,34 @@ async function searchPlaces(query) {
     );
     return res.data.places || [];
   } catch (e) {
+    console.error('Places API error:', e.message);
     return [];
   }
-}
-
-function saveCSV(leads, limit) {
-  const date = new Date().toISOString().split('T')[0];
-  const filename = path.join(LEADS_FOLDER, 'webleads_' + date + '_' + leads.length + 'leads.csv');
-  const header = 'Business Name,Address,Phone,Rating,Reviews,Niche,City\n';
-  const rows = leads.map(function(l) {
-    return '"' + l.name + '","' + (l.address || '') + '","' + (l.phone || '') + '",' + (l.rating || '') + ',' + (l.reviews || '') + ',"' + l.niche + '","' + l.city + '"';
-  }).join('\n');
-  fs.writeFileSync(filename, header + rows);
-  return filename;
 }
 
 app.get('/generate', async function(req, res) {
   const limit = parseInt(req.query.limit) || 50;
   const selectedNiches = req.query.niches ? req.query.niches.split(',') : ALL_NICHES;
+  const filterState = req.query.state || null;
+  const filterCity = req.query.city || null;
   const seen = loadSeen();
   const leads = [];
 
+  let cities = CITIES;
+  if (filterState) {
+    cities = cities.filter(c => c.state.toLowerCase() === filterState.toLowerCase());
+  }
+  if (filterCity) {
+    cities = cities.filter(c => c.city.toLowerCase() === filterCity.toLowerCase());
+  }
+  if (cities.length === 0) {
+    cities = CITIES;
+  }
+
   const combos = [];
   for (var i = 0; i < selectedNiches.length; i++) {
-    for (var j = 0; j < CITIES.length; j++) {
-      combos.push({ niche: selectedNiches[i], city: CITIES[j].city, state: CITIES[j].state });
+    for (var j = 0; j < cities.length; j++) {
+      combos.push({ niche: selectedNiches[i], city: cities[j].city, state: cities[j].state });
     }
   }
 
@@ -134,12 +138,18 @@ app.get('/generate', async function(req, res) {
   }
 
   saveSeen(seen);
-  const file = saveCSV(leads, limit);
-  res.json({ count: leads.length, file: file, leads: leads });
+  res.json({ count: leads.length, leads: leads });
 });
 
 app.get('/niches', function(req, res) {
   res.json({ niches: ALL_NICHES });
 });
 
-app.listen(3001, function() { console.log('Server running on http://localhost:3001'); });
+app.get('/health', function(req, res) {
+  res.json({ status: 'ok' });
+});
+
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, function() {
+  console.log('Server running on port ' + PORT);
+});
