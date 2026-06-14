@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WebLeads Daily</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; padding: 2rem; }
+  .logo { font-size: 24px; font-weight: 600; margin-bottom: 4px; }
+  .logo span { color: #1D9E75; }
+  .tagline { color: #64748b; font-size: 14px; margin-bottom: 2rem; }
+  .card { background: #1e2130; border: 1px solid #2d3148; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+  .card h2 { font-size: 14px; color: #94a3b8; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  .slider-row { display: flex; align-items: center; gap: 1rem; }
+  input[type=range] { flex: 1; accent-color: #1D9E75; }
+  .slider-val { font-size: 28px; font-weight: 600; color: #1D9E75; min-width: 60px; }
+  .niches { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .niche-btn { padding: 8px 12px; border-radius: 8px; border: 1px solid #2d3148; background: #0f1117; color: #94a3b8; cursor: pointer; font-size: 13px; text-align: left; transition: all 0.15s; }
+  .niche-btn.active { background: #1D9E75; border-color: #1D9E75; color: white; }
+  .select-all { font-size: 12px; color: #1D9E75; cursor: pointer; margin-bottom: 10px; display: inline-block; }
+  .generate-btn { width: 100%; padding: 14px; background: #1D9E75; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 0.5rem; }
+  .generate-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .progress { display: none; margin-top: 1rem; }
+  .progress-bar-wrap { background: #0f1117; border-radius: 99px; height: 6px; margin-bottom: 8px; }
+  .progress-bar { height: 6px; border-radius: 99px; background: #1D9E75; width: 0%; transition: width 0.3s; }
+  .progress-text { font-size: 13px; color: #64748b; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 1rem; }
+  .stat { background: #0f1117; border-radius: 8px; padding: 12px; text-align: center; }
+  .stat-val { font-size: 24px; font-weight: 600; color: #1D9E75; }
+  .stat-label { font-size: 11px; color: #64748b; margin-top: 2px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: #64748b; font-weight: 500; padding: 8px 12px; border-bottom: 1px solid #2d3148; }
+  td { padding: 10px 12px; border-bottom: 1px solid #1a1f35; color: #e2e8f0; }
+  tr:last-child td { border-bottom: none; }
+  .rating { color: #f59e0b; }
+  .export-btn { padding: 8px 16px; background: transparent; border: 1px solid #2d3148; color: #94a3b8; border-radius: 8px; cursor: pointer; font-size: 13px; }
+  .results-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+</style>
+</head>
+<body>
+
+<div class="logo"><span>Web</span>Leads Daily</div>
+<p class="tagline">Fresh leads every morning. Zero repeats. Ready to call.</p>
+
+<div class="card">
+  <h2>How many leads?</h2>
+  <div class="slider-row">
+    <input type="range" id="limitSlider" min="1" max="100" value="50" oninput="document.getElementById('limitVal').textContent=this.value">
+    <div class="slider-val" id="limitVal">50</div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Select niches</h2>
+  <span class="select-all" onclick="toggleAll()">Select / Deselect All</span>
+  <div class="niches" id="nicheGrid"></div>
+</div>
+
+<button class="generate-btn" id="genBtn" onclick="generate()">Generate Leads</button>
+
+<div class="progress" id="progress">
+  <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar"></div></div>
+  <div class="progress-text" id="progressText">Searching...</div>
+</div>
+
+<div id="results"></div>
+
+<script>
+const ALL_NICHES = [
+  'auto detailing', 'barbershop', 'nail salon', 'landscaping',
+  'cleaning service', 'tattoo shop', 'gym', 'plumber',
+  'electrician', 'pressure washing',
+  'roofing', 'construction', 'painting contractor', 'hvac',
+  'fence company', 'concrete contractor', 'tree service',
+  'carpet cleaning', 'moving company', 'pest control',
+  'window cleaning', 'drywall contractor'
+];
+
+const grid = document.getElementById('nicheGrid');
+ALL_NICHES.forEach(n => {
+  const btn = document.createElement('button');
+  btn.className = 'niche-btn active';
+  btn.textContent = n;
+  btn.onclick = () => btn.classList.toggle('active');
+  grid.appendChild(btn);
+});
+
+function toggleAll() {
+  const btns = document.querySelectorAll('.niche-btn');
+  const allActive = [...btns].every(b => b.classList.contains('active'));
+  btns.forEach(b => allActive ? b.classList.remove('active') : b.classList.add('active'));
+}
+
+async function generate() {
+  const limit = document.getElementById('limitSlider').value;
+  const selected = [...document.querySelectorAll('.niche-btn.active')].map(b => b.textContent);
+  if (selected.length === 0) { alert('Select at least one niche'); return; }
+
+  const btn = document.getElementById('genBtn');
+  const progress = document.getElementById('progress');
+  const progressBar = document.getElementById('progressBar');
+  const progressText = document.getElementById('progressText');
+
+  btn.disabled = true;
+  btn.textContent = 'Generating...';
+  progress.style.display = 'block';
+  document.getElementById('results').innerHTML = '';
+
+  let pct = 0;
+  const interval = setInterval(() => {
+    pct = Math.min(pct + 2, 90);
+    progressBar.style.width = pct + '%';
+    progressText.textContent = 'Searching ' + selected.length + ' niches across 20 cities...';
+  }, 800);
+
+  try {
+    const url = 'http://localhost:3001/generate?limit=' + limit + '&niches=' + encodeURIComponent(selected.join(','));
+    const res = await fetch(url);
+    const data = await res.json();
+
+    clearInterval(interval);
+    progressBar.style.width = '100%';
+    progressText.textContent = 'Done!';
+
+    setTimeout(() => { progress.style.display = 'none'; }, 1000);
+
+    renderResults(data.leads, data.file);
+  } catch (err) {
+    clearInterval(interval);
+    progressText.textContent = 'Error: Make sure server is running';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Generate Leads';
+  }
+}
+
+function renderResults(leads, file) {
+  if (!leads || leads.length === 0) {
+    document.getElementById('results').innerHTML = '<div class="card" style="color:#64748b;text-align:center;padding:2rem;">No leads found. Try different niches or run again.</div>';
+    return;
+  }
+
+  const niches = [...new Set(leads.map(l => l.niche))].length;
+  const cities = [...new Set(leads.map(l => l.city))].length;
+
+  let html = '<div class="card">';
+  html += '<div class="results-header"><h2>' + leads.length + ' leads generated</h2>';
+  html += '<button class="export-btn" onclick="window.open(\'http://localhost:3001/generate\')">Open CSV folder</button></div>';
+  html += '<div class="stats">';
+  html += '<div class="stat"><div class="stat-val">' + leads.length + '</div><div class="stat-label">Total leads</div></div>';
+  html += '<div class="stat"><div class="stat-val">' + niches + '</div><div class="stat-label">Niches</div></div>';
+  html += '<div class="stat"><div class="stat-val">' + cities + '</div><div class="stat-label">Cities</div></div>';
+  html += '</div>';
+  html += '<table><thead><tr><th>Business</th><th>Phone</th><th>Rating</th><th>City</th><th>Niche</th></tr></thead><tbody>';
+
+  leads.forEach(l => {
+    html += '<tr>';
+    html += '<td>' + l.name + '</td>';
+    html += '<td><a href="tel:' + l.phone + '" style="color:#1D9E75;">' + l.phone + '</a></td>';
+    html += '<td class="rating">★ ' + l.rating + ' (' + l.reviews + ')</td>';
+    html += '<td>' + l.city + '</td>';
+    html += '<td>' + l.niche + '</td>';
+    html += '</tr>';
+  });
+
+  html += '</tbody></table></div>';
+  html += '<p style="font-size:12px;color:#64748b;margin-top:8px;">CSV saved to: ' + file + '</p>';
+
+  document.getElementById('results').innerHTML = html;
+  window._leads = leads;
+}
+</script>
+</body>
+</html>
