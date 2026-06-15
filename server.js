@@ -21,27 +21,22 @@ const ALL_NICHES = [
   'window cleaning', 'drywall contractor'
 ];
 
-const CITIES = [
-  { city: 'Houston', state: 'TX' },
-  { city: 'San Antonio', state: 'TX' },
-  { city: 'Dallas', state: 'TX' },
-  { city: 'Austin', state: 'TX' },
-  { city: 'Fort Worth', state: 'TX' },
-  { city: 'El Paso', state: 'TX' },
-  { city: 'Corpus Christi', state: 'TX' },
-  { city: 'Lubbock', state: 'TX' },
-  { city: 'Laredo', state: 'TX' },
-  { city: 'Victoria', state: 'TX' },
-  { city: 'Phoenix', state: 'AZ' },
-  { city: 'Las Vegas', state: 'NV' },
-  { city: 'Atlanta', state: 'GA' },
-  { city: 'Miami', state: 'FL' },
-  { city: 'Orlando', state: 'FL' },
-  { city: 'Charlotte', state: 'NC' },
-  { city: 'Nashville', state: 'TN' },
-  { city: 'Denver', state: 'CO' },
-  { city: 'Portland', state: 'OR' },
-  { city: 'Memphis', state: 'TN' }
+const ALL_STATES = [
+  'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California',
+  'Colorado', 'Connecticut', 'Delaware', 'Florida', 'Georgia',
+  'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa',
+  'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland',
+  'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 'Missouri',
+  'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey',
+  'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio',
+  'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina',
+  'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont',
+  'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming'
+];
+
+const DEFAULT_STATES = [
+  'Texas', 'Florida', 'Georgia', 'Nevada', 'Tennessee',
+  'North Carolina', 'Colorado', 'Oregon'
 ];
 
 function loadSeen() {
@@ -81,27 +76,17 @@ async function searchPlaces(query) {
 
 app.get('/generate', async function(req, res) {
   const limit = parseInt(req.query.limit) || 50;
+  const isPro = req.query.pro === 'true';
   const selectedNiches = req.query.niches ? req.query.niches.split(',') : ALL_NICHES;
-  const filterState = req.query.state || null;
-  const filterCity = req.query.city || null;
+  const selectedStates = req.query.states ? req.query.states.split(',') : DEFAULT_STATES;
+  const minRating = isPro ? 3.7 : 4.5;
   const seen = loadSeen();
   const leads = [];
 
-  let cities = CITIES;
-  if (filterState) {
-    cities = cities.filter(c => c.state.toLowerCase() === filterState.toLowerCase());
-  }
-  if (filterCity) {
-    cities = cities.filter(c => c.city.toLowerCase() === filterCity.toLowerCase());
-  }
-  if (cities.length === 0) {
-    cities = CITIES;
-  }
-
   const combos = [];
   for (var i = 0; i < selectedNiches.length; i++) {
-    for (var j = 0; j < cities.length; j++) {
-      combos.push({ niche: selectedNiches[i], city: cities[j].city, state: cities[j].state });
+    for (var j = 0; j < selectedStates.length; j++) {
+      combos.push({ niche: selectedNiches[i], state: selectedStates[j] });
     }
   }
 
@@ -110,7 +95,7 @@ app.get('/generate', async function(req, res) {
   for (var k = 0; k < combos.length; k++) {
     if (leads.length >= limit) break;
     const combo = combos[k];
-    const query = combo.niche + ' in ' + combo.city + ', ' + combo.state;
+    const query = combo.niche + ' in ' + combo.state;
     const places = await searchPlaces(query);
 
     for (var m = 0; m < places.length; m++) {
@@ -119,7 +104,7 @@ app.get('/generate', async function(req, res) {
       const phone = p.nationalPhoneNumber;
       if (!phone) continue;
       if (p.websiteUri) continue;
-      if (!p.rating || p.rating < 4.5) continue;
+      if (!p.rating || p.rating < minRating) continue;
       if (!p.userRatingCount || p.userRatingCount < 5) continue;
       if (seen.has(phone)) continue;
       seen.add(phone);
@@ -130,7 +115,7 @@ app.get('/generate', async function(req, res) {
         rating: p.rating,
         reviews: p.userRatingCount,
         niche: combo.niche,
-        city: combo.city + ', ' + combo.state
+        state: combo.state
       });
     }
 
@@ -143,6 +128,10 @@ app.get('/generate', async function(req, res) {
 
 app.get('/niches', function(req, res) {
   res.json({ niches: ALL_NICHES });
+});
+
+app.get('/states', function(req, res) {
+  res.json({ states: ALL_STATES });
 });
 
 app.get('/health', function(req, res) {
